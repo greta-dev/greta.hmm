@@ -7,6 +7,10 @@ License: Apache License 2.0
 Encoding: UTF-8
 LazyData: true
 ByteCompile: true
+Depends:
+    greta
+Imports:
+    R6
 Suggests: 
     testthat
 Roxygen: list(markdown = TRUE)
