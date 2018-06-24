@@ -2,3 +2,4 @@
 
 export(hmm)
 importFrom(R6,R6Class)
+importFrom(greta,.internals)

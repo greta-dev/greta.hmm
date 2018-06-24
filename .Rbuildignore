@@ -1,3 +1,6 @@
 ^greta\.hmm\.Rproj$
 ^\.Rproj\.user$
 ^LICENSE$
+^\.travis\.yml$
+^README\.Rmd$
+^codecov\.yml$

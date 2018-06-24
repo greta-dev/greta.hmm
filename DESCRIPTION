@@ -12,6 +12,7 @@ Depends:
 Imports:
     R6
 Suggests: 
-    testthat
+    testthat,
+    covr
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 6.0.1
