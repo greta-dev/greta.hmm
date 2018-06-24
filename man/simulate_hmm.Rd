@@ -2,14 +2,14 @@
 % Please edit documentation in R/simulate_hmm.R
 \name{simulate_hmm}
 \alias{simulate_hmm}
-\alias{simulate_simplex_matrix}
+\alias{random_simplex_matrix}
 \title{Simulate Sequences of Hidden and Observed States from a Hidden Markov
 Model}
 \usage{
-simulate_hmm(transition = simulate_simplex_matrix(3, 3),
-  emission = simulate_simplex_matrix(3, 5), n_timesteps = 10)
+simulate_hmm(transition = random_simplex_matrix(3, 3),
+  emission = random_simplex_matrix(3, 5), n_timesteps = 10)
 
-simulate_simplex_matrix(nrow, ncol)
+random_simplex_matrix(nrow, ncol)
 }
 \arguments{
 \item{transition}{a K x K matrix of transition probabilities between hidden

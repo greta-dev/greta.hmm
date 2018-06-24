@@ -35,8 +35,8 @@
 #' # pull out the observed states
 #' hmm_data$observed
 #'
-simulate_hmm <- function (transition = simulate_simplex_matrix(3, 3),
-                          emission = simulate_simplex_matrix(3, 5),
+simulate_hmm <- function (transition = random_simplex_matrix(3, 3),
+                          emission = random_simplex_matrix(3, 5),
                           n_timesteps = 10) {
 
   # number of hidden and observedstates
@@ -110,7 +110,7 @@ simulate_hmm <- function (transition = simulate_simplex_matrix(3, 3),
 #' @export
 #'
 #' @param nrow,ncol the number of rows and columns in the matrix
-simulate_simplex_matrix <- function (nrow, ncol) {
+random_simplex_matrix <- function (nrow, ncol) {
 
   n_elem <- nrow * ncol
   elems <- runif(n_elem)
