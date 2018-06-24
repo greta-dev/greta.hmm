@@ -4,7 +4,7 @@
 \alias{hmm}
 \title{Define a Hidden Markov Model}
 \usage{
-hmm(transition, emission, n_timesteps, dim = 1)
+hmm(transition, emission, n_timesteps)
 }
 \arguments{
 \item{transition}{a K x K matrix of transition probabilities between hidden
@@ -17,6 +17,21 @@ observed states}
 matrix) - must be a positive scalar integer}
 }
 \description{
-Define a Hidden Markov Model as a probability distribution over
-a sequence of states
+\code{hmm()} create a variable greta array following a Hidden Markov
+Model (HMM) 'distribution'. That is a probability distribution whose
+density is given by the probability of observing a sequence of observed
+states (the variable greta array), given a transition and an emission
+matrix as its parameters. This can be viewed as a compound distribution
+consisting of a categorical distribution over observed states, conditional
+on hidden states which (sequentially) follow another categorical
+dsitribution states. The log density is calculated by analytically
+integrating out the hidden states, using the forward algorithm.
+
+This is a discrete, multivariate distribution, and is most likely to be
+used with \code{\link{distribution}()} to define a complete HMM, as in the
+example.
+
+The transition and emission matrices should represent simplices; having
+rows summing to 1. These can be create with e.g.
+\code{\link[greta:imultilogit]{imultilogit}()}.
 }

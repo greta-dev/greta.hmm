@@ -1,5 +1,6 @@
 # a distribution node and greta array constructor for hidden markov models
 
+#' @importFrom greta .internals
 distrib <- greta::.internals$nodes$constructors$distrib
 
 #' @title Define a Hidden Markov Model
@@ -7,8 +8,23 @@ distrib <- greta::.internals$nodes$constructors$distrib
 #'
 #' @export
 #'
-#' @description Define a Hidden Markov Model as a probability distribution over
-#'   a sequence of states
+#' @description `hmm()` create a variable greta array following a Hidden Markov
+#'   Model (HMM) 'distribution'. That is a probability distribution whose
+#'   density is given by the probability of observing a sequence of observed
+#'   states (the variable greta array), given a transition and an emission
+#'   matrix as its parameters. This can be viewed as a compound distribution
+#'   consisting of a categorical distribution over observed states, conditional
+#'   on hidden states which (sequentially) follow another categorical
+#'   dsitribution states. The log density is calculated by analytically
+#'   integrating out the hidden states, using the forward algorithm.
+#'
+#'   This is a discrete, multivariate distribution, and is most likely to be
+#'   used with \code{\link{distribution}()} to define a complete HMM, as in the
+#'   example.
+#'
+#'   The transition and emission matrices should represent simplices; having
+#'   rows summing to 1. These can be create with e.g.
+#'   \code{\link[greta:imultilogit]{imultilogit}()}.
 #'
 #' @param transition a K x K matrix of transition probabilities between hidden
 #'   states
@@ -17,8 +33,8 @@ distrib <- greta::.internals$nodes$constructors$distrib
 #' @param n_timesteps the number of timesteps (length of the observed state
 #'   matrix) - must be a positive scalar integer
 #'
-hmm <- function (transition, emission, n_timesteps, dim = 1)
-  distrib("hmm", transition, emission, n_timesteps, dim)
+hmm <- function (transition, emission, n_timesteps)
+  distrib("hmm", transition, emission, n_timesteps)
 
 
 as.greta_array <- greta::.internals$greta_arrays$as.greta_array
