@@ -10,7 +10,8 @@ ByteCompile: true
 Depends:
     greta
 Imports:
-    R6
+    R6,
+    tensorflow
 Suggests: 
     testthat,
     covr

@@ -2,6 +2,9 @@
 
 #' @importFrom greta .internals
 distrib <- greta::.internals$nodes$constructors$distrib
+as.greta_array <- greta::.internals$greta_arrays$as.greta_array
+is_scalar <- greta::.internals$utils$misc$is_scalar
+tf_as_integer <- greta::.internals$tensors$tf_as_integer
 
 #' @title Define a Hidden Markov Model
 #' @name hmm
@@ -33,15 +36,48 @@ distrib <- greta::.internals$nodes$constructors$distrib
 #' @param n_timesteps the number of timesteps (length of the observed state
 #'   matrix) - must be a positive scalar integer
 #'
+#' @examples
+#' \dontrun{
+#'
+#' # simulate data
+#' n_hidden <- 2
+#' n_observable <- 2
+#' timesteps <- 20
+#' transition <- random_simplex_matrix(n_hidden,
+#'                                     n_hidden)
+#' emission <- random_simplex_matrix(n_hidden,
+#'                                   n_observable)
+#' hmm_data <- simulate_hmm(transition,
+#'                          emission,
+#'                          timesteps)
+#' obs <- hmm_data$observed
+#'
+#' # create simplex variables for the matrices
+#' transition_raw <- uniform(0, 1, dim = c(n_hidden, n_hidden - 1))
+#' transition <- imultilogit(transition_raw)
+#'
+#' emission_raw <- uniform(0, 1, dim = c(n_hidden, n_observable - 1))
+#' emission <- imultilogit(emission_raw)
+#'
+#' # define the HMM over the observed states
+#' distribution(obs) <- hmm(transition, emission, timesteps)
+#'
+#' # build and fit the model
+#' m <- model(transition)
+#' draws <- mcmc(m)
+#'
+#' # compare the posterior means with the true transitions
+#' means <- summary(draws)$statistics[, 1]
+#' matrix(means, n_hidden, n_hidden)
+#' hmm_data$transition
+#'
+#' }
 hmm <- function (transition, emission, n_timesteps)
   distrib("hmm", transition, emission, n_timesteps)
 
-
-as.greta_array <- greta::.internals$greta_arrays$as.greta_array
-is_scalar <- greta::.internals$utils$misc$is_scalar
-
 #' @importFrom R6 R6Class
-hmm_distribition <- R6::R6Class(
+#' @importFrom tensorflow tf
+hmm_distribution <- R6::R6Class(
   "hmm_distribution",
   inherit = greta::.internals$nodes$node_classes$distribution_node,
   public = list(
@@ -79,12 +115,10 @@ hmm_distribition <- R6::R6Class(
       }
 
       if (length(dim(emission)) != 2L ||
-          nrow(emission) != n_transition ||
-          ncol(emission) != n_timesteps) {
+          nrow(emission) != n_transition) {
 
         stop ("emission must be a 2D greta array with ",
               "the same number of rows as transition (", n_transition, ") ",
-              "and n_timesteps (", n_timesteps, ") columns ",
               "but has dimensions ",
               paste(dim(emission), collapse = " x "),
               call. = FALSE)
@@ -99,7 +133,7 @@ hmm_distribition <- R6::R6Class(
 
     },
 
-    tf_distrib = function (parameters) {
+    tf_distrib = function (parameters, dag) {
 
       emission <- parameters$emission
       transition <- parameters$transition
@@ -115,18 +149,18 @@ hmm_distribition <- R6::R6Class(
         t_log_transition <- tf$transpose(log_transition)
 
         emission_obs <- tf$gather(emission,
-                                  observations - 1L,
+                                  observations[, 0] - 1L,
                                   axis = 1L)
         log_emission_obs <- tf$log(emission_obs)
 
         # initialize
-        gamma <- log_emit_obs[, 0]
+        gamma <- log_emission_obs[, 0]
 
         # iterate through timepoints accumulating log density in gamma
         # (a tf$while_loop might be more efficient)
         for (t in seq_len(nobs - 1)) {
           acc <- t_log_transition + gamma
-          t_acc <- tf$transpose(acc) + emission_obs[, t]
+          t_acc <- tf$transpose(acc) + log_emission_obs[, t]
           gamma <- tf$reduce_logsumexp(t_acc, axis = 0L)
         }
 

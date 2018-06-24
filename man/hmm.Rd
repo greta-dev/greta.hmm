@@ -35,3 +35,40 @@ The transition and emission matrices should represent simplices; having
 rows summing to 1. These can be create with e.g.
 \code{\link[greta:imultilogit]{imultilogit}()}.
 }
+\examples{
+\dontrun{
+
+# simulate data
+n_hidden <- 2
+n_observable <- 2
+timesteps <- 20
+transition <- random_simplex_matrix(n_hidden,
+                                    n_hidden)
+emission <- random_simplex_matrix(n_hidden,
+                                  n_observable)
+hmm_data <- simulate_hmm(transition,
+                         emission,
+                         timesteps)
+obs <- hmm_data$observed
+
+# create simplex variables for the matrices
+transition_raw <- uniform(0, 1, dim = c(n_hidden, n_hidden - 1))
+transition <- imultilogit(transition_raw)
+
+emission_raw <- uniform(0, 1, dim = c(n_hidden, n_observable - 1))
+emission <- imultilogit(emission_raw)
+
+# define the HMM over the observed states
+distribution(obs) <- hmm(transition, emission, timesteps)
+
+# build and fit the model
+m <- model(transition)
+draws <- mcmc(m)
+
+# compare the posterior means with the true transitions
+means <- summary(draws)$statistics[, 1]
+matrix(means, n_hidden, n_hidden)
+hmm_data$transition
+
+}
+}
