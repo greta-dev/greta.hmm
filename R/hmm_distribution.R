@@ -18,8 +18,8 @@ tf_as_integer <- greta::.internals$tensors$tf_as_integer
 #'   matrix as its parameters. This can be viewed as a compound distribution
 #'   consisting of a categorical distribution over observed states, conditional
 #'   on hidden states which (sequentially) follow another categorical
-#'   dsitribution states. The log density is calculated by analytically
-#'   integrating out the hidden states, using the forward algorithm.
+#'   distribution of states. The log density is calculated by analytically
+#'   integrating out the hidden states using the forward algorithm.
 #'
 #'   This is a discrete, multivariate distribution, and is most likely to be
 #'   used with \code{\link{distribution}()} to define a complete HMM, as in the
@@ -29,6 +29,8 @@ tf_as_integer <- greta::.internals$tensors$tf_as_integer
 #'   rows summing to 1. These can be create with e.g.
 #'   \code{\link[greta:imultilogit]{imultilogit}()}.
 #'
+#' @param initial a length K row vector (ie. 1 x K matrix) of probabilities of
+#'   initial hidden states
 #' @param transition a K x K matrix of transition probabilities between hidden
 #'   states
 #' @param emission a K x N matrix of emission probabilities between hidden and
@@ -43,16 +45,21 @@ tf_as_integer <- greta::.internals$tensors$tf_as_integer
 #' n_hidden <- 2
 #' n_observable <- 2
 #' timesteps <- 20
+#' initial <- random_simplex_matrix(n_hidden, 1)
 #' transition <- random_simplex_matrix(n_hidden,
 #'                                     n_hidden)
 #' emission <- random_simplex_matrix(n_hidden,
 #'                                   n_observable)
-#' hmm_data <- simulate_hmm(transition,
+#' hmm_data <- simulate_hmm(initial,
+#'                          transition,
 #'                          emission,
 #'                          timesteps)
 #' obs <- hmm_data$observed
 #'
 #' # create simplex variables for the matrices
+#' initial_raw <- uniform(0, 1, dim = c(1, n_hidden - 1))
+#' initial <- imultilogit(initial_raw)
+#'
 #' transition_raw <- uniform(0, 1, dim = c(n_hidden, n_hidden - 1))
 #' transition <- imultilogit(transition_raw)
 #'
@@ -60,7 +67,7 @@ tf_as_integer <- greta::.internals$tensors$tf_as_integer
 #' emission <- imultilogit(emission_raw)
 #'
 #' # define the HMM over the observed states
-#' distribution(obs) <- hmm(transition, emission, timesteps)
+#' distribution(obs) <- hmm(initial, transition, emission, timesteps)
 #'
 #' # build and fit the model
 #' m <- model(transition)
@@ -72,8 +79,9 @@ tf_as_integer <- greta::.internals$tensors$tf_as_integer
 #' hmm_data$transition
 #'
 #' }
-hmm <- function (transition, emission, n_timesteps)
-  distrib("hmm", transition, emission, n_timesteps)
+hmm <- function (initial, transition, emission, n_timesteps) {
+  distrib("hmm", initial, transition, emission, n_timesteps)
+}
 
 #' @importFrom R6 R6Class
 #' @importFrom tensorflow tf
@@ -82,9 +90,12 @@ hmm_distribution <- R6::R6Class(
   inherit = greta::.internals$nodes$node_classes$distribution_node,
   public = list(
 
-    initialize = function (transition, emission, n_timesteps) {
+    n_timesteps = 0L,
+
+    initialize = function (initial, transition, emission, n_timesteps) {
 
       # coerce things to greta arrays
+      initial <- as.greta_array(initial)
       transition <- as.greta_array(transition)
       emission <- as.greta_array(emission)
 
@@ -114,6 +125,19 @@ hmm_distribution <- R6::R6Class(
 
       }
 
+      # check the dimensions
+      if (length(dim(initial)) != 2L ||
+          ncol(initial) != n_transition) {
+
+        stop ("initial must be a row vector greta array ",
+              "with as many elements as hidden states ",
+              "(i.e. the dimension of 'transition') ",
+              "but has dimensions ",
+              paste(dim(initial), collapse = " x "),
+              call. = FALSE)
+
+      }
+
       if (length(dim(emission)) != 2L ||
           nrow(emission) != n_transition) {
 
@@ -128,50 +152,37 @@ hmm_distribution <- R6::R6Class(
       super$initialize("hmm",
                        dim = c(n_timesteps, 1L),
                        discrete = TRUE)
+      self$add_parameter(initial, "initial")
       self$add_parameter(transition, "transition")
       self$add_parameter(emission, "emission")
+
+      self$n_timesteps <- n_timesteps
 
     },
 
     tf_distrib = function (parameters, dag) {
 
-      emission <- parameters$emission
-      transition <- parameters$transition
+      init_prob <- parameters$initial
+      trans_prob <- parameters$transition
+      emiss_prob <- parameters$emission
 
-      # the forward algorithm
-      log_prob <- function(x) {
+      tfd <- tfp$distributions
+      init_dist <- tfd$Categorical(probs = init_prob[, 0, ])
+      trans_dist <- tfd$Categorical(probs = trans_prob)
+      emiss_dist <- tfd$Categorical(probs = emiss_prob)
 
-        nobs <- length(x)
-        observations <- tf_as_integer(x)
+      hmm_dist <- tfd$HiddenMarkovModel(
+        initial_distribution = init_dist,
+        transition_distribution = trans_dist,
+        observation_distribution = emiss_dist,
+        num_steps = self$n_timesteps
+      )
 
-        # pre-transform inputs as necessary
-        log_transition <- tf$log(transition)
-        t_log_transition <- tf$transpose(log_transition)
-
-        emission_obs <- tf$gather(emission,
-                                  observations[, 0] - 1L,
-                                  axis = 1L)
-        log_emission_obs <- tf$log(emission_obs)
-
-        # initialize
-        gamma <- log_emission_obs[, 0]
-
-        # iterate through timepoints accumulating log density in gamma
-        # (a tf$while_loop might be more efficient)
-        for (t in seq_len(nobs - 1)) {
-          acc <- t_log_transition + gamma
-          t_acc <- tf$transpose(acc) + log_emission_obs[, t]
-          gamma <- tf$reduce_logsumexp(t_acc, axis = 0L)
-        }
-
-        # combine
-        tf$reduce_logsumexp(gamma)
-
+      log_prob <- function (x) {
+        hmm_dist$log_prob(x[, , 0] - 1L)
       }
 
-      list(log_prob = log_prob,
-           cdf = NULL,
-           log_cdf = NULL)
+      list(log_prob = log_prob, cdf = NULL, log_cdf = NULL)
 
     },
 

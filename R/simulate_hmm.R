@@ -9,6 +9,8 @@
 #'
 #' @export
 #'
+#' @param initial a length K row vector (ie. 1 x K matrix) of probabilities of
+#'   initial hidden states
 #' @param transition a K x K matrix of transition probabilities between hidden
 #'   states
 #' @param emission a K x N matrix of emission probabilities between hidden and
@@ -35,11 +37,14 @@
 #' # pull out the observed states
 #' hmm_data$observed
 #'
-simulate_hmm <- function (transition = random_simplex_matrix(3, 3),
-                          emission = random_simplex_matrix(3, 5),
-                          n_timesteps = 10) {
+simulate_hmm <- function (
+  initial = random_simplex_matrix(1, 3),
+  transition = random_simplex_matrix(3, 3),
+  emission = random_simplex_matrix(3, 5),
+  n_timesteps = 10
+) {
 
-  # number of hidden and observedstates
+  # number of hidden and observed states
   n_transition <- nrow(transition)
   n_observed <- ncol(emission)
 
@@ -55,9 +60,11 @@ simulate_hmm <- function (transition = random_simplex_matrix(3, 3),
 
   }
 
-  if (inherits(transition, "greta_array") ||
+  if (inherits(initial, "greta_array") ||
+      inherits(transition, "greta_array") ||
       inherits(emission, "greta_array")) {
-    stop ("transition and emission must be R matrices, not greta arrays",
+    stop ("initial, transition and emission must be R matrices, ",
+          "not greta arrays",
           call. = FALSE)
 
   }
@@ -69,6 +76,20 @@ simulate_hmm <- function (transition = random_simplex_matrix(3, 3),
     stop ("transition must be a square matrix ",
           "but has dimensions ",
           paste(dim(transition), collapse = " x "),
+          call. = FALSE)
+
+  }
+
+
+  # check the dimensions
+  if (length(dim(initial)) != 2L ||
+      ncol(initial) != n_transition) {
+
+    stop ("initial must be a row  vector greta array ",
+          "with as many elements as hidden states ",
+          "(i.e. the dimension of 'transition') ",
+          "but has dimensions ",
+          paste(dim(initial), collapse = " x "),
           call. = FALSE)
 
   }
@@ -87,7 +108,7 @@ simulate_hmm <- function (transition = random_simplex_matrix(3, 3),
 
   # get the hidden states
   hidden_states <- rep(NA, n_timesteps)
-  hidden_states[1] <- get_initial_state(transition)
+  hidden_states[1] <- sample.int(n_transition, 1, prob = initial[1, ])
   for (t in 2:n_timesteps)
     hidden_states[t] <- get_next_state(hidden_states[t - 1], transition)
 
@@ -101,6 +122,7 @@ simulate_hmm <- function (transition = random_simplex_matrix(3, 3),
   # return the data as a list
   list(hidden = hidden_states,
        observed = observed_states,
+       initial = initial,
        transition = transition,
        emission = emission)
 }
