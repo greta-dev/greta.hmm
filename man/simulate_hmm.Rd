@@ -6,12 +6,16 @@
 \title{Simulate Sequences of Hidden and Observed States from a Hidden Markov
 Model}
 \usage{
-simulate_hmm(transition = random_simplex_matrix(3, 3),
+simulate_hmm(initial = random_simplex_matrix(1, 3),
+  transition = random_simplex_matrix(3, 3),
   emission = random_simplex_matrix(3, 5), n_timesteps = 10)
 
 random_simplex_matrix(nrow, ncol)
 }
 \arguments{
+\item{initial}{a length K row vector (ie. 1 x K matrix) of probabilities of
+initial hidden states}
+
 \item{transition}{a K x K matrix of transition probabilities between hidden
 states}
 

@@ -4,9 +4,12 @@
 \alias{hmm}
 \title{Define a Hidden Markov Model}
 \usage{
-hmm(transition, emission, n_timesteps)
+hmm(initial, transition, emission, n_timesteps)
 }
 \arguments{
+\item{initial}{a length K row vector (ie. 1 x K matrix) of probabilities of
+initial hidden states}
+
 \item{transition}{a K x K matrix of transition probabilities between hidden
 states}
 
@@ -24,8 +27,8 @@ states (the variable greta array), given a transition and an emission
 matrix as its parameters. This can be viewed as a compound distribution
 consisting of a categorical distribution over observed states, conditional
 on hidden states which (sequentially) follow another categorical
-dsitribution states. The log density is calculated by analytically
-integrating out the hidden states, using the forward algorithm.
+distribution of states. The log density is calculated by analytically
+integrating out the hidden states using the forward algorithm.
 
 This is a discrete, multivariate distribution, and is most likely to be
 used with \code{\link{distribution}()} to define a complete HMM, as in the
@@ -42,33 +45,27 @@ rows summing to 1. These can be create with e.g.
 n_hidden <- 2
 n_observable <- 2
 timesteps <- 20
+initial <- random_simplex_matrix(1, n_hidden)
 transition <- random_simplex_matrix(n_hidden,
                                     n_hidden)
 emission <- random_simplex_matrix(n_hidden,
                                   n_observable)
-hmm_data <- simulate_hmm(transition,
+hmm_data <- simulate_hmm(initial,
+                         transition,
                          emission,
                          timesteps)
 obs <- hmm_data$observed
 
-# create simplex variables for the matrices
-transition_raw <- uniform(0, 1, dim = c(n_hidden, n_hidden - 1))
-transition <- imultilogit(transition_raw)
-
-emission_raw <- uniform(0, 1, dim = c(n_hidden, n_observable - 1))
-emission <- imultilogit(emission_raw)
+# create simplex variables for the parameters
+initial <- dirichlet(ones(1, n_hidden))
+transition <- dirichlet(ones(n_hidden, n_hidden))
+emission <- dirichlet(ones(n_hidden, n_observable))
 
 # define the HMM over the observed states
-distribution(obs) <- hmm(transition, emission, timesteps)
+distribution(obs) <- hmm(initial, transition, emission, timesteps)
 
-# build and fit the model
-m <- model(transition)
-draws <- mcmc(m)
-
-# compare the posterior means with the true transitions
-means <- summary(draws)$statistics[, 1]
-matrix(means, n_hidden, n_hidden)
-hmm_data$transition
+# build the model
+m <- model(transition, emission, initial)
 
 }
 }

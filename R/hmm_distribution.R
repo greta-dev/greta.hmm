@@ -5,6 +5,7 @@ distrib <- greta::.internals$nodes$constructors$distrib
 as.greta_array <- greta::.internals$greta_arrays$as.greta_array
 is_scalar <- greta::.internals$utils$misc$is_scalar
 tf_as_integer <- greta::.internals$tensors$tf_as_integer
+tfp <- reticulate::import("tensorflow_probability", delay_load = TRUE)
 
 #' @title Define a Hidden Markov Model
 #' @name hmm
@@ -45,7 +46,7 @@ tf_as_integer <- greta::.internals$tensors$tf_as_integer
 #' n_hidden <- 2
 #' n_observable <- 2
 #' timesteps <- 20
-#' initial <- random_simplex_matrix(n_hidden, 1)
+#' initial <- random_simplex_matrix(1, n_hidden)
 #' transition <- random_simplex_matrix(n_hidden,
 #'                                     n_hidden)
 #' emission <- random_simplex_matrix(n_hidden,
@@ -56,27 +57,16 @@ tf_as_integer <- greta::.internals$tensors$tf_as_integer
 #'                          timesteps)
 #' obs <- hmm_data$observed
 #'
-#' # create simplex variables for the matrices
-#' initial_raw <- uniform(0, 1, dim = c(1, n_hidden - 1))
-#' initial <- imultilogit(initial_raw)
-#'
-#' transition_raw <- uniform(0, 1, dim = c(n_hidden, n_hidden - 1))
-#' transition <- imultilogit(transition_raw)
-#'
-#' emission_raw <- uniform(0, 1, dim = c(n_hidden, n_observable - 1))
-#' emission <- imultilogit(emission_raw)
+#' # create simplex variables for the parameters
+#' initial <- dirichlet(ones(1, n_hidden))
+#' transition <- dirichlet(ones(n_hidden, n_hidden))
+#' emission <- dirichlet(ones(n_hidden, n_observable))
 #'
 #' # define the HMM over the observed states
 #' distribution(obs) <- hmm(initial, transition, emission, timesteps)
 #'
-#' # build and fit the model
-#' m <- model(transition)
-#' draws <- mcmc(m)
-#'
-#' # compare the posterior means with the true transitions
-#' means <- summary(draws)$statistics[, 1]
-#' matrix(means, n_hidden, n_hidden)
-#' hmm_data$transition
+#' # build the model
+#' m <- model(transition, emission, initial)
 #'
 #' }
 hmm <- function (initial, transition, emission, n_timesteps) {
@@ -166,6 +156,7 @@ hmm_distribution <- R6::R6Class(
       trans_prob <- parameters$transition
       emiss_prob <- parameters$emission
 
+      tfp <- reticulate::import("tensorflow_probability")
       tfd <- tfp$distributions
       init_dist <- tfd$Categorical(probs = init_prob[, 0, ])
       trans_dist <- tfd$Categorical(probs = trans_prob)
