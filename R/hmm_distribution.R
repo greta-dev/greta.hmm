@@ -183,3 +183,17 @@ hmm_distribution <- R6::R6Class(
   )
 
 )
+
+
+
+# to make hmm work, we need to make distributions nodes use tf_distrib to define
+# their tensorflow counterparts as the TFP distribution (or list mocking it up)
+
+# provide *dag* functionality method to take this object and evaluate the log
+# density, accounting for truncation etc.
+
+# functions like mixture and joint therefore need to take in these distribution
+# objects
+
+# can then use these to get the log prob function, or can switch to using TFP
+# distributions for these
