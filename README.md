@@ -4,14 +4,16 @@
 # greta.hmm
 
 <!-- badges: start -->
-<!-- badges: end -->
-
-### Hidden Markov Models in greta
 
 [![Travis build
 status](https://travis-ci.org/goldingn/greta.hmm.svg?branch=master)](https://travis-ci.org/goldingn/greta.hmm)
 [![Coverage
 status](https://codecov.io/gh/goldingn/greta.hmm/branch/master/graph/badge.svg)](https://codecov.io/github/goldingn/greta.hmm?branch=master)
+
+<!-- badges: end -->
+
+### Hidden Markov Models in greta
+
 `greta.hmm` lets you build hidden Markov models with greta.
 
 ## Installation
